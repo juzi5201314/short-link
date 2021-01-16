@@ -1,8 +1,9 @@
 use rbatis::rbatis::Rbatis;
 use serde_json::Value;
 
-use crate::RBATIS;
+use crate::{RBATIS, DATABASE_FILE};
 use rbatis::crud::CRUD;
+use std::fs::OpenOptions;
 
 #[crud_enable(table_name: link_data)]
 #[derive(Debug, Clone)]
@@ -99,4 +100,21 @@ pub async fn get_next_id() -> anyhow::Result<u32> {
         }
     }
     Err(anyhow::Error::msg("获取id失败"))
+}
+
+pub async fn setup_database() -> Result<(), rbatis::core::Error> {
+    OpenOptions::new()
+        .create_new(true)
+        .open(DATABASE_FILE)
+        .ok();
+
+    let rb = RBATIS.get_or_init(Rbatis::new);
+    rb
+        .link(const_format::concatcp!("sqlite:", DATABASE_FILE) as &str)
+        .await?;
+    rb
+        .exec("", include_str!("sql/create_table.sql"))
+        .await?;
+
+    Ok(())
 }

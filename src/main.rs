@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate rbatis;
 
-use std::fs::OpenOptions;
-
 use log::SetLoggerError;
 use once_cell::sync::OnceCell;
 use rbatis::rbatis::Rbatis;
-use crate::db::delete_short_link;
+
+use crate::db::{delete_short_link, setup_database};
 
 mod db;
+mod web;
 
 const DATABASE_FILE: &'static str = "data.db";
 
@@ -17,23 +17,6 @@ pub static RBATIS: OnceCell<Rbatis> = OnceCell::new();
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     setup().await?;
-
-    Ok(())
-}
-
-async fn setup_database() -> Result<(), rbatis::core::Error> {
-    OpenOptions::new()
-        .create_new(true)
-        .open(DATABASE_FILE)
-        .ok();
-
-    let rb = RBATIS.get_or_init(Rbatis::new);
-    rb
-        .link(const_format::concatcp!("sqlite:", DATABASE_FILE) as &str)
-        .await?;
-    rb
-        .exec("", include_str!("sql/create_table.sql"))
-        .await?;
 
     Ok(())
 }
