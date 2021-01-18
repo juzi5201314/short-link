@@ -108,13 +108,13 @@ fn add<'r>(req: &'r Request, data: rocket::data::Data) -> HandlerFuture<'r> {
         };
 
         match add_short_link(data.link.clone(), custom).await {
-            Ok(_) => {}
+            Ok(model) => {
+                Outcome::from(req, model.short)
+            }
             Err(e) => {
                 error!("`add_short_link` error: {:?}", e);
                 return Outcome::failure(Status::BadRequest);
             }
         }
-
-        Outcome::from(req, "")
     })
 }
