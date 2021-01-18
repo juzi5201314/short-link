@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate rbatis;
+#[macro_use]
+extern crate rocket;
 
 use log::SetLoggerError;
 use once_cell::sync::OnceCell;
@@ -17,6 +19,8 @@ pub static RBATIS: OnceCell<Rbatis> = OnceCell::new();
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     setup().await?;
+
+    web::listen().await?;
 
     Ok(())
 }
@@ -48,7 +52,7 @@ async fn setup() -> anyhow::Result<()> {
 async fn test_insert() {
     use crate::db::{add_short_link, get_next_id, get_short_link};
 
-    let add = |id| add_short_link(format!("http://example.com/test{}", id));
+    let add = |id| add_short_link(format!("http://example.com/test{}", id), None);
 
     setup().await.unwrap();
 

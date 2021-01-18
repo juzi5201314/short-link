@@ -47,8 +47,21 @@ pub async fn get_short_link(short: String) -> anyhow::Result<Option<Model>> {
     }
 }
 
-pub async fn add_short_link(link: String) -> anyhow::Result<Model> {
+pub async fn add_short_link(link: String, custom: Option<String>) -> anyhow::Result<Model> {
     let db = get_db();
+
+    let get_short = || {
+        async {
+            let id = get_next_id().await.expect("无法获取下一个id");
+            match custom.clone() {
+                Some(s) => (s, id),
+                _ => {
+                    // 根据下一个自增id生成对应标识符
+                    (base_62::encode(&id.to_be_bytes()), id)
+                }
+            }
+        }
+    };
 
     // 查询link是否重复
     let model: Option<Model> = db
@@ -63,9 +76,29 @@ pub async fn add_short_link(link: String) -> anyhow::Result<Model> {
         return Ok(model);
     }
 
-    let id = get_next_id().await.expect("无法获取下一个id");
-    // 根据下一个自增id生成对应标识符
-    let short = base_62::encode(&id.to_be_bytes());
+    let short = get_short().await.0;
+
+    // 查询short是否重复
+    // 在自定义短标识符的情况下可能会出现重复, 但概率很小.
+    let model: Option<Model> = db
+        .fetch_by_wrapper("", &db
+            .new_wrapper()
+            .eq("short", &short)
+            .check()?,
+        )
+        .await?;
+    // 如果重复,填入uuid占位. uuid重复的概率近乎于0.
+    if let Some(_) = model {
+        let uid = uuid::Uuid::new_v4().to_string();
+        db.save("", &Model {
+            id: None,
+            short: uid.clone(),
+            link: uid,
+        }).await?;
+    }
+
+    // 重新获取id
+    let (short, id) = get_short().await;
 
     let model = Model {
         id: None,
